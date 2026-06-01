@@ -1,0 +1,160 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions  Session[]
+  auditLogs AuditLog[]
+}
+
+enum Role {
+  SUPER_ADMIN
+  SECURITY_ANALYST
+  NETWORK_ENGINEER
+  USER
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Device {
+  id                String       @id @default(uuid())
+  mac               String       @unique
+  ip                String?
+  hostname          String?
+  vendor            String?
+  osFingerprint     String?
+  assignedVlan      Int?
+  riskScore         Int          @default(0)
+  owner             String?
+  department        String?
+  complianceStatus  Compliance   @default(UNKNOWN)
+  status            DeviceStatus @default(UNKNOWN)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  vlanAssignments   VlanAssignment[]
+  auditLogs         AuditLog[]
+  riskScores        RiskScore[]
+}
+
+enum Compliance {
+  COMPLIANT
+  NON_COMPLIANT
+  UNKNOWN
+}
+
+enum DeviceStatus {
+  UNKNOWN
+  DETECTED
+  REGISTRATION_VLAN
+  REGISTERED
+  PENDING_APPROVAL
+  APPROVED
+  VLAN_ASSIGNED
+  ACTIVE
+  QUARANTINED
+  BLOCKED
+  HIGH_RISK
+  NON_COMPLIANT
+}
+
+model Switch {
+  id              String   @id @default(uuid())
+  ip              String   @unique
+  hostname        String
+  vendor          String
+  username        String
+  password        String
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  vlanAssignments VlanAssignment[]
+}
+
+model VlanAssignment {
+  id        String   @id @default(uuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  switchId  String
+  switch    Switch   @relation(fields: [switchId], references: [id])
+  port      String
+  vlanId    Int
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  deviceId  String?
+  device    Device?  @relation(fields: [deviceId], references: [id])
+  action    String
+  severity  String
+  result    String
+  metadata  Json?
+  ipAddress String?
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model RiskScore {
+  id        String   @id @default(uuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  score     Int
+  factors   Json
+  createdAt DateTime @default(now())
+}
+
+model ComplianceReport {
+  id        String   @id @default(uuid())
+  score     Int
+  details   Json
+  createdAt DateTime @default(now())
+}
+
+model Policy {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  conditions  Json
+  actions     Json
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model OnboardingSession {
+  id        String   @id @default(uuid())
+  mac       String
+  ip        String?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
